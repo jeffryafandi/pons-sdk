@@ -1,0 +1,56 @@
+{
+  "name": "pons-sdk",
+  "version": "0.1.0",
+  "description": "Production TypeScript SDK for trading, token creation, market data, OHLCV charts, and onchain streaming on PonsV2 on Robinhood Chain (Mainnet & Testnet)",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "pons",
+    "ponsv2",
+    "robinhood-chain",
+    "robinhood",
+    "sdk",
+    "bonding-curve",
+    "uniswap-v4",
+    "defi",
+    "trading",
+    "ohlcv",
+    "crypto"
+  ],
+  "author": "Pons Community",
+  "license": "MIT",
+  "dependencies": {
+    "viem": "^2.21.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.5.4",
+    "tsup": "^8.3.0",
+    "typescript": "^5.6.2",
+    "vitest": "^2.1.1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

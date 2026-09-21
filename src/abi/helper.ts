@@ -1,0 +1,61 @@
+export const helperAbi = [
+  {
+    inputs: [
+      {
+        components: [
+          { internalType: 'string', name: 'name', type: 'string' },
+          { internalType: 'string', name: 'symbol', type: 'string' },
+          { internalType: 'string', name: 'logo', type: 'string' },
+          { internalType: 'string', name: 'description', type: 'string' },
+          {
+            components: [
+              { internalType: 'string', name: 'twitter', type: 'string' },
+              { internalType: 'string', name: 'telegram', type: 'string' },
+              { internalType: 'string', name: 'discord', type: 'string' },
+              { internalType: 'string', name: 'website', type: 'string' },
+              { internalType: 'string', name: 'farcaster', type: 'string' },
+            ],
+            internalType: 'struct PonsV2LauncherToken.Socials',
+            name: 'socials',
+            type: 'tuple',
+          },
+          { internalType: 'address', name: 'creatorFeeRecipient', type: 'address' },
+          { internalType: 'uint16', name: 'creatorTaxBps', type: 'uint16' },
+          { internalType: 'bool', name: 'buybackEnabled', type: 'bool' },
+          { internalType: 'bytes32', name: 'expectedEconomics', type: 'bytes32' },
+          { internalType: 'bytes32', name: 'salt', type: 'bytes32' },
+        ],
+        internalType: 'struct PonsV2LaunchFactory.TokenParams',
+        name: 'params',
+        type: 'tuple',
+      },
+      { internalType: 'uint256', name: 'launchConfigId', type: 'uint256' },
+      { internalType: 'address', name: 'pairToken', type: 'address' },
+      { internalType: 'uint256', name: 'quoteIn', type: 'uint256' },
+      { internalType: 'uint256', name: 'minTokensOut', type: 'uint256' },
+      { internalType: 'address', name: 'recipient', type: 'address' },
+      { internalType: 'address[]', name: 'snipeTaxExemptions', type: 'address[]' },
+    ],
+    name: 'launchAndBuy',
+    outputs: [
+      { internalType: 'address', name: 'token', type: 'address' },
+      { internalType: 'address', name: 'curve', type: 'address' },
+      { internalType: 'uint256', name: 'tokensOut', type: 'uint256' },
+    ],
+    stateMutability: 'payable',
+    type: 'function',
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, internalType: 'address', name: 'token', type: 'address' },
+      { indexed: true, internalType: 'address', name: 'curve', type: 'address' },
+      { indexed: true, internalType: 'address', name: 'recipient', type: 'address' },
+      { indexed: false, internalType: 'address', name: 'launcher', type: 'address' },
+      { indexed: false, internalType: 'uint256', name: 'quoteSpent', type: 'uint256' },
+      { indexed: false, internalType: 'uint256', name: 'tokensReceived', type: 'uint256' },
+    ],
+    name: 'Launched',
+    type: 'event',
+  },
+] as const;
