@@ -1,6 +1,6 @@
 {
   "name": "pons-sdk",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Production TypeScript SDK for trading, token creation, market data, OHLCV charts, and onchain streaming on PonsV2 on Robinhood Chain (Mainnet & Testnet)",
   "type": "module",
   "main": "./dist/index.cjs",

@@ -1,4 +1,5 @@
 import type { Chain } from 'viem';
+import type { StorageConfig } from './storage.js';
 
 export type NetworkName = 'mainnet' | 'testnet';
 
@@ -40,4 +41,7 @@ export type PonsConfig = {
   privateKey?: `0x${string}`;
   /** Optional contract address overrides */
   customContracts?: Partial<PonsDeploymentAddresses>;
+  /** Optional JSON storage engine configuration */
+  storage?: StorageConfig;
 };
+

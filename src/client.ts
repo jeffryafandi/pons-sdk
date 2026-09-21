@@ -11,6 +11,7 @@ import { ChartModule } from './modules/chart.js';
 import { EventsModule } from './modules/events.js';
 import { HistoryModule } from './modules/history.js';
 import { MarketModule } from './modules/market.js';
+import { StorageModule } from './modules/storage.js';
 import { TokenModule } from './modules/token.js';
 import { TradeModule } from './modules/trade.js';
 import type { NetworkDeployment, NetworkName, PonsConfig } from './types/config.js';
@@ -35,6 +36,7 @@ import {
  * - History & Holders: Unified trades across both Curve and Uniswap v4 for migrated tokens.
  * - Charts: Historical OHLCV candlestick data and live onchain chart streaming.
  * - Real-Time Listeners: Live event streaming for trades, launches, and graduations.
+ * - JSON Storage & Live Sync: Catch up historical OHLCV/trades/holders to disk and stream live updates.
  */
 export class PonsSDK {
   private _config: PonsConfig;
@@ -48,6 +50,7 @@ export class PonsSDK {
   public history!: HistoryModule;
   public chart!: ChartModule;
   public events!: EventsModule;
+  public storage!: StorageModule;
 
   /**
    * High-level time-to-block and block-to-time conversion helpers for seamless time-based queries.
@@ -133,6 +136,13 @@ export class PonsSDK {
     this.history = new HistoryModule(this._publicClient, this._deployment, this._config.apiOrigin);
     this.chart = new ChartModule(this._publicClient, this._deployment, this._config.apiOrigin);
     this.events = new EventsModule(this._publicClient, this._deployment);
+    this.storage = new StorageModule(
+      this._publicClient,
+      this._deployment,
+      this.history,
+      this.chart,
+      this._config.storage,
+    );
   }
 
   get config(): PonsConfig {

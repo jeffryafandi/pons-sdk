@@ -219,6 +219,44 @@ for (const h of holders) {
 
 ---
 
+### 6. JSON Storage & Real-Time Sync-to-Stream Engine
+
+Persist historical token data to a local JSON database upon first fetch up until the current timestamp (`now`), and immediately switch to live event streaming (updating trades, OHLCV candles, and token holders with debounced disk writes) for zero-RPC instant lookups:
+
+```typescript
+// 1. Initialize Sync & Stream
+const controller = await sdk.storage.syncAndStream('0xTokenAddress...', {
+  intervals: ['1m', '5m', '15m', '1h', '1d'],
+  onInitialSyncComplete: (db) => {
+    console.log('✅ Initial catch-up saved to JSON file!');
+    console.log(`Synced up to block ${db.lastSyncedBlock} with ${db.trades.length} trades.`);
+  },
+  onTrade: (trade) => {
+    console.log(`⚡ [Live Trade] ${trade.side} @ ${trade.priceEth} ETH`);
+  },
+  onCandleUpdate: (interval, candle, isClosed) => {
+    console.log(`📊 [${interval}] Close: ${candle.close} ETH`);
+  },
+  onHoldersUpdate: (holders) => {
+    console.log(`👥 Holders updated: top balance is ${holders[0]?.balanceFormatted}`);
+  },
+});
+
+// 2. Instant zero-RPC lookups directly from local JSON database / memory cache
+const candles = controller.getStoredOHLCV('1m', 100);
+const recentTrades = controller.getStoredTrades(50);
+const topHolders = controller.getStoredHolders(20);
+
+// Or via sdk.storage:
+const savedCandles = await sdk.storage.getOHLCV('0xTokenAddress...', '1m');
+
+// 3. Stop streaming when done
+await controller.stop();
+```
+
+
+---
+
 ## Supported Networks
 
 | Network | Chain ID | Default RPC |
