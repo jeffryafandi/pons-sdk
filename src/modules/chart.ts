@@ -1,4 +1,5 @@
 import { type PublicClient } from 'viem';
+import { HistoryModule } from './history.js';
 import { curveAbi, factoryAbi, hookAbi } from '../abi/index.js';
 import type { NetworkDeployment } from '../types/config.js';
 import type {
@@ -21,11 +22,15 @@ export const INTERVAL_SECONDS: Record<CandleInterval, number> = {
 };
 
 export class ChartModule {
+  private readonly historyModule: HistoryModule;
+
   constructor(
     private readonly publicClient: PublicClient,
     private readonly deployment: NetworkDeployment,
     private readonly apiOrigin?: string,
-  ) {}
+  ) {
+    this.historyModule = new HistoryModule(publicClient, deployment, apiOrigin);
+  }
 
   /**
    * Fetch historical OHLCV candlestick data for a token.
@@ -70,127 +75,25 @@ export class ChartModule {
       } catch {}
     }
 
-    // Direct Onchain logs aggregation
-    const record = (await this.publicClient.readContract({
-      address: this.deployment.addresses.factory,
-      abi: factoryAbi,
-      functionName: 'getLaunchedToken',
-      args: [token],
-    })) as {
-      curve: `0x${string}`;
-      phase: number;
-      poolFee: number;
-      tickSpacing: number;
-    };
+    // Direct Onchain logs aggregation via unified HistoryModule
+    const rawTrades = await this.historyModule.getTrades(token, {
+      fromBlock: options.fromBlock,
+      from: options.from,
+      limit: 2000,
+    });
 
-    const currentBlock = await this.publicClient.getBlockNumber();
-    const defaultStart = this.deployment.deployBlock ?? (currentBlock > 150000n ? currentBlock - 150000n : 0n);
-    const fromBlock = options.fromBlock ?? defaultStart;
+    const trades = rawTrades
+      .map((t) => ({
+        price: t.priceEth,
+        quoteEth: Number(t.quoteAmountWei) / 1e18,
+        tokenAmount: Number(t.tokenAmountRaw) / 1e18,
+        side: t.side,
+        timestampSec: Math.floor(t.timestamp.getTime() / 1000),
+      }))
+      .sort((a, b) => a.timestampSec - b.timestampSec);
 
-    type RawTrade = {
-      price: number;
-      quoteEth: number;
-      tokenAmount: number;
-      side: 'buy' | 'sell';
-      timestampSec: number;
-    };
-
-    const trades: RawTrade[] = [];
-    const nowSec = Math.floor(Date.now() / 1000);
-
-    // 1. Collect Curve trades
-    if (record.curve && record.curve !== '0x0000000000000000000000000000000000000000') {
-      try {
-        const [buys, sells] = await Promise.all([
-          this.publicClient.getContractEvents({
-            address: record.curve,
-            abi: curveAbi,
-            eventName: 'CurveBuy',
-            fromBlock,
-          }),
-          this.publicClient.getContractEvents({
-            address: record.curve,
-            abi: curveAbi,
-            eventName: 'CurveSell',
-            fromBlock,
-          }),
-        ]);
-
-        for (const b of buys) {
-          const quoteIn = Number(b.args.quoteIn ?? 0n) / 1e18;
-          const tokensOut = Number(b.args.tokensOut ?? 0n) / 1e18;
-          if (tokensOut > 0) {
-            trades.push({
-              price: quoteIn / tokensOut,
-              quoteEth: quoteIn,
-              tokenAmount: tokensOut,
-              side: 'buy',
-              timestampSec: nowSec,
-            });
-          }
-        }
-
-        for (const s of sells) {
-          const quoteOut = Number(s.args.quoteOut ?? 0n) / 1e18;
-          const tokensIn = Number(s.args.tokensIn ?? 0n) / 1e18;
-          if (tokensIn > 0) {
-            trades.push({
-              price: quoteOut / tokensIn,
-              quoteEth: quoteOut,
-              tokenAmount: tokensIn,
-              side: 'sell',
-              timestampSec: nowSec,
-            });
-          }
-        }
-      } catch {}
-    }
-
-    // 2. Collect Uniswap v4 Pool swaps if token has migrated (phase === 2)
-    if (record.phase === 2) {
-      try {
-        const poolKey: PoolKey = {
-          currency0: (token.toLowerCase() < CONSTANTS_ETH.toLowerCase() ? token : CONSTANTS_ETH) as `0x${string}`,
-          currency1: (token.toLowerCase() < CONSTANTS_ETH.toLowerCase() ? CONSTANTS_ETH : token) as `0x${string}`,
-          fee: record.poolFee,
-          tickSpacing: record.tickSpacing,
-          hooks: this.deployment.addresses.hook,
-        };
-        const poolId = computePoolId(poolKey);
-
-        const swaps = await this.publicClient.getContractEvents({
-          address: this.deployment.addresses.poolManager,
-          abi: hookAbi,
-          eventName: 'Swap',
-          args: { id: poolId },
-          fromBlock,
-        });
-
-        for (const sw of swaps) {
-          const a0 = sw.args.amount0 ? BigInt(sw.args.amount0) : 0n;
-          const a1 = sw.args.amount1 ? BigInt(sw.args.amount1) : 0n;
-
-          const isZeroEth = poolKey.currency0 === CONSTANTS_ETH;
-          const ethDelta = isZeroEth ? a0 : a1;
-          const tokenDelta = isZeroEth ? a1 : a0;
-
-          const quoteEth = Math.abs(Number(ethDelta) / 1e18);
-          const tokenAmount = Math.abs(Number(tokenDelta) / 1e18);
-
-          if (tokenAmount > 0) {
-            trades.push({
-              price: quoteEth / tokenAmount,
-              quoteEth,
-              tokenAmount,
-              side: ethDelta > 0n ? 'buy' : 'sell',
-              timestampSec: nowSec,
-            });
-          }
-        }
-      } catch {}
-    }
-
-    return this.aggregateCandles(trades, interval);
+    const candles = this.aggregateCandles(trades, interval);
+    return candles.slice(-limit);
   }
 
   /**

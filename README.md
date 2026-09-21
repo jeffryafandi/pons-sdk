@@ -11,6 +11,43 @@ Supports:
 - 👥 **Holder Analysis**: Top token holders, balances, and ownership distribution.
 - 🔔 **Real-Time Event Listeners**: Stream trades, launches, and graduations via onchain event logs.
 
+
+---
+
+### 6. Unix Timestamp to Block Number Calculator
+
+Easily convert between Unix timestamps, dates, and block numbers (calibrated to Robinhood Chain's ~0.26s block time):
+
+```typescript
+import { timestampToBlock, blockToTimestamp, timeRangeToBlockRange } from 'pons-sdk';
+
+// 1. Convert timestamp / Date to block number via sdk.time
+const block24hAgo = await sdk.time.timestampToBlock(Date.now() - 24 * 3600 * 1000);
+console.log('Block 24h ago:', block24hAgo);
+
+// 2. Convert block number to Unix timestamp
+const timestamp = await sdk.time.blockToTimestamp(122154441n);
+console.log('Block time (UTC):', new Date(timestamp * 1000).toISOString());
+
+// 3. Convert human-readable time range directly to block range
+const { fromBlock, toBlock } = await sdk.time.timeRangeToBlockRange({
+  from: '2026-09-20T20:00:00.000Z',
+  to: new Date(),
+});
+
+// 4. Query trades directly by date/timestamp (no manual block math required!)
+const trades = await sdk.history.getTrades('0xTokenAddress...', {
+  from: '2026-09-20T20:00:00.000Z', // or Date or Unix timestamp (seconds/ms)
+  limit: 100,
+});
+
+// 5. Query OHLCV candles directly by date/timestamp
+const candles = await sdk.chart.getOHLCV('0xTokenAddress...', {
+  from: '2026-09-20T20:00:00.000Z',
+  interval: '5m',
+});
+```
+
 ---
 
 ## Installation

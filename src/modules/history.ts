@@ -5,6 +5,7 @@ import type { TokenHolder, TradeEvent } from '../types/events.js';
 import { formatTokenAmount } from '../utils/format.js';
 import { validateAddress } from '../utils/validation.js';
 import { computePoolId, CONSTANTS_ETH, type PoolKey } from './user-pool-encode.js';
+import { timestampToBlock } from '../utils/time.js';
 
 export class HistoryModule {
   constructor(
@@ -20,7 +21,13 @@ export class HistoryModule {
    */
   async getTrades(
     tokenAddress: string,
-    options: { limit?: number; side?: 'buy' | 'sell'; fromBlock?: bigint } = {},
+    options: {
+    limit?: number;
+    side?: 'buy' | 'sell';
+    fromBlock?: bigint;
+    from?: number | Date | string;
+    fromTimestamp?: number | Date | string;
+  } = {},
   ): Promise<TradeEvent[]> {
     const token = validateAddress(tokenAddress);
     const limit = options.limit ?? 50;
@@ -69,8 +76,18 @@ export class HistoryModule {
     };
 
     const currentBlock = await this.publicClient.getBlockNumber();
-    const defaultStart = this.deployment.deployBlock ?? (currentBlock > 150000n ? currentBlock - 150000n : 0n);
-    const fromBlock = options.fromBlock ?? defaultStart;
+    let fromBlock: bigint;
+    const targetFromTime = options.from ?? options.fromTimestamp;
+
+    if (options.fromBlock !== undefined) {
+      fromBlock = options.fromBlock;
+    } else if (targetFromTime !== undefined) {
+      fromBlock = await timestampToBlock(this.publicClient, targetFromTime, { exact: false });
+    } else {
+      // Robinhood block time is ~0.26s -> ~350,000 blocks in 24 hours
+      const twentyFourHoursBlocks = 350000n;
+      fromBlock = currentBlock > twentyFourHoursBlocks ? currentBlock - twentyFourHoursBlocks : 0n;
+    }
 
     const trades: TradeEvent[] = [];
 
@@ -186,6 +203,25 @@ export class HistoryModule {
           });
         }
       } catch {}
+    }
+
+    // Enrich trades with authentic block timestamps
+    if (trades.length > 0) {
+      const uniqueBlocks = Array.from(new Set(trades.map((t) => t.blockNumber)));
+      const blockTimestamps = new Map<bigint, Date>();
+      await Promise.all(
+        uniqueBlocks.map(async (b) => {
+          try {
+            const blk = await this.publicClient.getBlock({ blockNumber: b });
+            blockTimestamps.set(b, new Date(Number(blk.timestamp) * 1000));
+          } catch {
+            blockTimestamps.set(b, new Date());
+          }
+        }),
+      );
+      for (const trade of trades) {
+        trade.timestamp = blockTimestamps.get(trade.blockNumber) ?? new Date();
+      }
     }
 
     trades.sort((a, b) => (a.blockNumber < b.blockNumber ? 1 : -1));

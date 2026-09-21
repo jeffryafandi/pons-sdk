@@ -14,6 +14,15 @@ import { MarketModule } from './modules/market.js';
 import { TokenModule } from './modules/token.js';
 import { TradeModule } from './modules/trade.js';
 import type { NetworkDeployment, NetworkName, PonsConfig } from './types/config.js';
+import {
+  timestampToBlock,
+  blockToTimestamp,
+  timeRangeToBlockRange,
+  estimateBlockFromTimestamp,
+  estimateTimestampFromBlock,
+  type TimestampToBlockOptions,
+  type BlockEstimationParams,
+} from './utils/time.js';
 
 /**
  * PonsSDK: Universal TypeScript SDK for interacting with PonsV2 on Robinhood Chain.
@@ -39,6 +48,45 @@ export class PonsSDK {
   public history!: HistoryModule;
   public chart!: ChartModule;
   public events!: EventsModule;
+
+  /**
+   * High-level time-to-block and block-to-time conversion helpers for seamless time-based queries.
+   */
+  public readonly time = {
+    /**
+     * Convert any Unix timestamp, Date, or ISO string to the corresponding block number.
+     */
+    timestampToBlock: (targetTimestamp: number | Date | string, options?: TimestampToBlockOptions) =>
+      timestampToBlock(this._publicClient, targetTimestamp, options),
+
+    /**
+     * Convert any block number to its corresponding Unix timestamp in seconds.
+     */
+    blockToTimestamp: (blockNumber: bigint, options?: { exact?: boolean; blockTimeSec?: number }) =>
+      blockToTimestamp(this._publicClient, blockNumber, options),
+
+    /**
+     * Convert a human-readable date/time range into a block number range (fromBlock, toBlock).
+     */
+    timeRangeToBlockRange: (range: {
+      from?: number | Date | string;
+      to?: number | Date | string;
+      blockTimeSec?: number;
+      exact?: boolean;
+    } = {}) => timeRangeToBlockRange(this._publicClient, range),
+
+    /**
+     * Synchronously estimate block number without an RPC call given a known reference block.
+     */
+    estimateBlock: (params: BlockEstimationParams) =>
+      estimateBlockFromTimestamp(params),
+
+    /**
+     * Synchronously estimate Unix timestamp without an RPC call given a known reference block.
+     */
+    estimateTimestamp: (params: Parameters<typeof estimateTimestampFromBlock>[0]) =>
+      estimateTimestampFromBlock(params),
+  };
 
   constructor(config: PonsConfig = {}) {
     this._config = config;

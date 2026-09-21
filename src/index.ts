@@ -9,6 +9,7 @@ export * from './abi/index.js';
 export * from './utils/math.js';
 export * from './utils/format.js';
 export * from './utils/validation.js';
+export * from './utils/time.js';
 export * from './modules/token.js';
 export * from './modules/trade.js';
 export * from './modules/market.js';
